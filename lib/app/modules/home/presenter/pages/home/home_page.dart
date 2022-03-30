@@ -1,19 +1,15 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:mobx/mobx.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../../../domain/entities/anime_post_entity.dart';
 import 'home_controller.dart';
 import 'state_managers_or_stores/bloc/anime_posts_bloc.dart';
 import 'state_managers_or_stores/change_notifier/anime_posts_notifier_store_states.dart';
 import 'state_managers_or_stores/mobx/anime_posts_mobx_store.dart';
-import 'widgets/anime_post_card_widget.dart';
 import 'widgets/home_loading_widget.dart';
+import 'widgets/posts_list_view.dart';
 import 'widgets/state_manager_tile.dart';
 
 class HomePage extends StatefulWidget {
@@ -30,6 +26,8 @@ class _HomePageState extends State<HomePage> {
   late StateManager stateManager;
   ReactionDisposer? disposer;
   late VoidCallback fetchAnimePosts;
+  late void Function(VoidCallback) fetchAnimePostsWithStateManager;
+  late Widget body;
 
   @override
   void initState() {
@@ -39,9 +37,12 @@ class _HomePageState extends State<HomePage> {
 
   void initHomePage() {
     getHomeControllerInstance();
-    configPagination();
-    //initBloc();
     initChangeNotifier();
+    fetchAnimePosts = () {
+      lockUpdatePostList = true;
+      fetchAnimePostsWithStateManager(onFinishFetchPosts);
+    };
+    configPagination();
   }
 
   void getHomeControllerInstance() {
@@ -51,23 +52,11 @@ class _HomePageState extends State<HomePage> {
   void configPagination() {
     scrollControllerForPagination = ScrollController();
     scrollControllerForPagination.addListener(() {
-      if (canFetch) {
-        fetchAnimePosts();
-      }
+      if (canFetch) fetchAnimePosts();
     });
   }
 
   bool get canFetch => scrollControllerForPagination.offset >= scrollControllerForPagination.position.maxScrollExtent - 100 && !lockUpdatePostList;
-
-  void fetchAnimePostsWithBloc() {
-    lockUpdatePostList = true;
-    controller.fetchAnimePosts(onFinishFetchPosts);
-  }
-
-  void fetchAnimePostsWithMobx() {
-    lockUpdatePostList = true;
-    controller.fetchAnimePostsWithMobx(onFinishFetchPosts);
-  }
 
   void onFinishFetchPosts() {
     lockUpdatePostList = false;
@@ -76,17 +65,32 @@ class _HomePageState extends State<HomePage> {
   void initBloc() {
     setState(() {
       stateManager = StateManager.bloc;
-      fetchAnimePosts = fetchAnimePostsWithBloc;
+      body = buildBodyWithBloc;
+      fetchAnimePostsWithStateManager = controller.fetchAnimePosts;
     });
     if (controller.posts.isEmpty) {
       fetchAnimePosts();
     }
   }
 
+  Widget get buildBodyWithBloc => BlocConsumer<AnimePostsBloc, AnimePostsState>(
+        bloc: controller.animePostsBloc,
+        listener: (listenerContext, animePostsState) {
+          if (animePostsState is AnimePostsErrorState) {
+            showSnackBar(animePostsState.message, listenerContext);
+          }
+        },
+        builder: (_, state) {
+          final animePostsList = controller.posts;
+          return animePostsList.isEmpty ? const HomeLoadingWidget() : PostsListView(animePostsList, state is FetchingAnimePostsState, scrollControllerForPagination);
+        },
+      );
+
   void initMobx() {
     setState(() {
       stateManager = StateManager.mobx;
-      fetchAnimePosts = fetchAnimePostsWithMobx;
+      body = buildBodyWithMobx;
+      fetchAnimePostsWithStateManager = controller.fetchAnimePostsWithMobx;
     });
     disposer = when((_) => controller.animePostsMobxStore.state is AnimePostsMobxErrorState, () {
       final errorMessage = (controller.animePostsMobxStore.state as AnimePostsMobxErrorState).message;
@@ -97,25 +101,37 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void showSnackBar(String message, [BuildContext? contextPamareter]) {
-    ScaffoldMessenger.of(contextPamareter ?? context).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  void deactivateMobx() {
-    disposer?.call();
-    disposer = null;
-  }
+  Widget get buildBodyWithMobx => Observer(
+        builder: (_) {
+          final state = controller.animePostsMobxStore.state;
+          final animePostsList = controller.mobxPosts;
+          return animePostsList.isEmpty ? const HomeLoadingWidget() : PostsListView(animePostsList, state is FetchingAnimePostsState, scrollControllerForPagination);
+        },
+      );
 
   void initChangeNotifier() {
-    final notifierStore = controller.animePostsNotifierStore;
-    notifierStore.addListener(listenToErrorStateInNotifierStore);
+    controller.animePostsNotifierStore.addListener(listenToErrorStateInNotifierStore);
     setState(() {
       stateManager = StateManager.changeNotifier;
-      fetchAnimePosts = fetchAnimePostsWithChangeNotifier;
+      body = buildBodyWithChangeNotifier;
+      fetchAnimePostsWithStateManager = controller.fetchAnimePostsWithChangeNotifier;
     });
     if (controller.notifierPosts.isEmpty) {
       fetchAnimePosts();
     }
+  }
+
+  Widget get buildBodyWithChangeNotifier => AnimatedBuilder(
+        animation: controller.animePostsNotifierStore,
+        builder: (_, child) {
+          final state = controller.animePostsNotifierStore.state;
+          final animePostsList = controller.notifierPosts;
+          return animePostsList.isEmpty ? const HomeLoadingWidget() : PostsListView(animePostsList, state is FetchingAnimePostsState, scrollControllerForPagination);
+        },
+      );
+
+  void showSnackBar(String message, [BuildContext? contextPamareter]) {
+    ScaffoldMessenger.of(contextPamareter ?? context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void listenToErrorStateInNotifierStore() {
@@ -125,15 +141,12 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void deactivateChangeNotifier() {
-    final notifierStore = controller.animePostsNotifierStore;
-    notifierStore.removeListener(listenToErrorStateInNotifierStore);
+  void deactivateMobx() {
+    disposer?.call();
+    disposer = null;
   }
 
-  void fetchAnimePostsWithChangeNotifier() {
-    lockUpdatePostList = true;
-    controller.fetchAnimePostsWithChangeNotifier(onFinishFetchPosts);
-  }
+  void deactivateChangeNotifier() => controller.animePostsNotifierStore.removeListener(listenToErrorStateInNotifierStore);
 
   @override
   Widget build(BuildContext context) {
@@ -169,66 +182,12 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      body: Builder(builder: (_) {
-        if (stateManager == StateManager.bloc) {
-          return BlocConsumer<AnimePostsBloc, AnimePostsState>(
-            bloc: controller.animePostsBloc,
-            listener: (listenerContext, animePostsState) {
-              if (animePostsState is AnimePostsErrorState) {
-                showSnackBar(animePostsState.message, listenerContext);
-              }
-            },
-            builder: (_, animePostsState) {
-              final animePostsList = controller.posts;
-              return animePostsList.isEmpty ? const HomeLoadingWidget() : buildList(animePostsList, animePostsState is FetchingAnimePostsState);
-            },
-          );
-        }
-        if (stateManager == StateManager.mobx) {
-          return Observer(
-            builder: (_) {
-              final state = controller.animePostsMobxStore.state;
-              final animePostsList = controller.mobxPosts;
-              return animePostsList.isEmpty ? const HomeLoadingWidget() : buildList(animePostsList, state is FetchingAnimeMobxPostsState);
-            },
-          );
-        }
-        if (stateManager == StateManager.changeNotifier) {
-          return AnimatedBuilder(
-            animation: controller.animePostsNotifierStore,
-            builder: (_, child) {
-              final state = controller.animePostsNotifierStore.state;
-              final animePostsList = controller.notifierPosts;
-              return animePostsList.isEmpty ? const HomeLoadingWidget() : buildList(animePostsList, state is FetchingAnimeNotifierPostsState);
-            },
-          );
-        }
-        return const SizedBox();
-      }),
-    );
-  }
-
-  Widget buildList(List<AnimePostEntity> animePostsList, bool isLoading) {
-    return ListView.builder(
-      controller: scrollControllerForPagination,
-      itemCount: animePostsList.length + 1,
-      itemBuilder: (_, index) {
-        if (isTheLastIndexOfTheAnimePostList(animePostsList, index)) {
-          return isLoading ? const HomeLoadingWidget() : const SizedBox();
-        }
-        return AnimePostCardWidget(
-          animePost: animePostsList[index],
-          onTap: () => onTapAnimePostCard(animePostsList[index].link),
-        );
-      },
+      body: body,
     );
   }
 
   void deactivateCurrentStateManager() {
     switch (stateManager) {
-      case StateManager.bloc:
-        //deactivateBloc();
-        break;
       case StateManager.mobx:
         deactivateMobx();
         break;
@@ -237,17 +196,6 @@ class _HomePageState extends State<HomePage> {
         break;
       default:
     }
-  }
-
-  bool isTheLastIndexOfTheAnimePostList(List list, int index) => list.length == index;
-
-  FutureOr<void> onTapAnimePostCard(String? link) {
-    final url = link ?? '';
-    return canLaunch(url).then((answer) {
-      answer == true ? launch(url) : showSnackBar('Não foi possível abrir o link');
-    }).onError<Exception>((error, stacktrace) {
-      showSnackBar(error.toString());
-    });
   }
 }
 
