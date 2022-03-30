@@ -6,6 +6,7 @@
 - Clean Dart
 - Modular (flutter_modular: 4.5.0)
 - Unit tests (mocktail: 0.3.0)
+- Change Notifier
 
 ## Project specs
 - Dart 2.16.1
