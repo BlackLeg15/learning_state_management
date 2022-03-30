@@ -1,11 +1,11 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../../../domain/entities/anime_post_entity.dart';
-import '../../../../domain/errors/get_posts_error.dart';
-import '../../../../domain/params/get_all_posts_params.dart';
-import '../../../../domain/typedefs/get_posts_use_case_typedef.dart';
-import '../../../../domain/use_cases/get_all_posts_use_case/get_posts_use_case.dart';
+import '../../../../../domain/entities/anime_post_entity.dart';
+import '../../../../../domain/errors/get_posts_error.dart';
+import '../../../../../domain/params/get_all_posts_params.dart';
+import '../../../../../domain/typedefs/get_posts_use_case_typedef.dart';
+import '../../../../../domain/use_cases/get_all_posts_use_case/get_posts_use_case.dart';
 import 'anime_posts_notifier_store_params.dart';
 import 'anime_posts_notifier_store_states.dart';
 

@@ -2,10 +2,10 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../core/constants/fetch_anime_posts_parameters.dart';
-import '../../../../domain/entities/anime_post_entity.dart';
-import '../../../../domain/params/get_all_posts_params.dart';
-import '../../../../domain/use_cases/get_all_posts_use_case/get_posts_use_case.dart';
+import '../../../../../../../core/constants/fetch_anime_posts_parameters.dart';
+import '../../../../../domain/entities/anime_post_entity.dart';
+import '../../../../../domain/params/get_all_posts_params.dart';
+import '../../../../../domain/use_cases/get_all_posts_use_case/get_posts_use_case.dart';
 
 part 'events/anime_posts_events.dart';
 part 'states/anime_posts_states.dart';

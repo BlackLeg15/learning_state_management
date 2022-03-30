@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../../../../core/constants/fetch_anime_posts_parameters.dart';
-import '../../../../domain/entities/anime_post_entity.dart';
+import '../../../../../../../core/constants/fetch_anime_posts_parameters.dart';
+import '../../../../../domain/entities/anime_post_entity.dart';
 
 abstract class AnimePostsNotifierStoreState extends Equatable {
   final int page;

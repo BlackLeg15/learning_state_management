@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../domain/entities/anime_post_entity.dart';
-import 'bloc/anime_posts_bloc.dart';
-import 'change_notifier/anime_posts_notifier_store.dart';
-import 'change_notifier/anime_posts_notifier_store_params.dart';
-import 'mobx/anime_posts_mobx_store.dart';
-import 'mobx/params/anime_posts_mobx_store_params.dart';
+import 'state_managers_or_stores/change_notifier/anime_posts_notifier_store.dart';
+import 'state_managers_or_stores/change_notifier/anime_posts_notifier_store_params.dart';
+import 'state_managers_or_stores/mobx/anime_posts_mobx_store.dart';
+import 'state_managers_or_stores/bloc/anime_posts_bloc.dart';
+import 'state_managers_or_stores/mobx/params/anime_posts_mobx_store_params.dart';
 
 class HomeController {
   final AnimePostsBloc animePostsBloc;

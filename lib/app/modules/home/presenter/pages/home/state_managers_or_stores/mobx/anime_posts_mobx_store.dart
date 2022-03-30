@@ -1,10 +1,10 @@
 import 'package:equatable/equatable.dart';
 import 'package:mobx/mobx.dart';
 
-import '../../../../../../core/constants/fetch_anime_posts_parameters.dart';
-import '../../../../domain/entities/anime_post_entity.dart';
-import '../../../../domain/params/get_all_posts_params.dart';
-import '../../../../domain/use_cases/get_all_posts_use_case/get_posts_use_case.dart';
+import '../../../../../../../core/constants/fetch_anime_posts_parameters.dart';
+import '../../../../../domain/entities/anime_post_entity.dart';
+import '../../../../../domain/params/get_all_posts_params.dart';
+import '../../../../../domain/use_cases/get_all_posts_use_case/get_posts_use_case.dart';
 import 'params/anime_posts_mobx_store_params.dart';
 part 'anime_posts_mobx_store.g.dart';
 part 'states/anime_posts_mobx_store_states.dart';
