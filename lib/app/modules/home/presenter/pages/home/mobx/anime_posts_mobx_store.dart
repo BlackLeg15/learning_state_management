@@ -20,7 +20,7 @@ abstract class _AnimePostsMobxStoreBase with Store {
   _AnimePostsMobxStoreBase(this._getAllPostsUseCase);
 
   @action
-  Future<void> getPosts(GetPostsMobxParams? params) async {
+  Future<void> getPosts(FetchPostsMobxParams? params) async {
     _state = FetchingAnimeMobxPostsState(_state.animePosts, _state.page + 1);
     final result = await _getAllPostsUseCase(GetAllPostsParams(_state.page, FetchAnimePostsParameters.postsPerPage));
     _state = result.fold<AnimePostsMobxStoreState>((error) {

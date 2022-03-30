@@ -28,7 +28,7 @@ mixin _$AnimePostsMobxStore on _AnimePostsMobxStoreBase, Store {
       AsyncAction('_AnimePostsMobxStoreBase.getPosts');
 
   @override
-  Future<void> getPosts(GetPostsMobxParams? params) {
+  Future<void> getPosts(FetchPostsMobxParams? params) {
     return _$getPostsAsyncAction.run(() => super.getPosts(params));
   }
 

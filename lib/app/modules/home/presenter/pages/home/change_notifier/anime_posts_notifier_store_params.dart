@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 
-class FetchPostsMobxParams {
+class FetchPostsNotifierParams {
   final VoidCallback? onStateCallback;
   final VoidCallback? onErrorCallback;
 
-  const FetchPostsMobxParams({this.onStateCallback, this.onErrorCallback});
+  const FetchPostsNotifierParams({this.onStateCallback, this.onErrorCallback});
 }

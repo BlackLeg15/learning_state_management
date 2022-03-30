@@ -8,6 +8,7 @@ import 'package:mobx/mobx.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'bloc/anime_posts_bloc.dart';
+import 'change_notifier/anime_posts_notifier_store_states.dart';
 import 'home_controller.dart';
 import 'mobx/anime_posts_mobx_store.dart';
 import 'widgets/anime_post_card_widget.dart';
@@ -37,7 +38,8 @@ class _HomePageState extends State<HomePage> {
   void initHomePage() {
     getHomeControllerInstance();
     configPagination();
-    initBloc();
+    //initBloc();
+    initChangeNotifier();
   }
 
   void getHomeControllerInstance() {
@@ -82,11 +84,15 @@ class _HomePageState extends State<HomePage> {
     fetchAnimePosts = fetchAnimePostsWithMobx;
     disposer = when((_) => controller.animePostsMobxStore.state is AnimePostsMobxErrorState, () {
       final errorMessage = (controller.animePostsMobxStore.state as AnimePostsMobxErrorState).message;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage)));
+      showSnackBar(errorMessage);
     });
     if (controller.mobxPosts.isEmpty) {
       fetchAnimePosts();
     }
+  }
+
+  void showSnackBar(String message, [BuildContext? contextPamareter]) {
+    ScaffoldMessenger.of(contextPamareter ?? context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void deactivateMobx() {
@@ -94,12 +100,38 @@ class _HomePageState extends State<HomePage> {
     disposer = null;
   }
 
+  void initChangeNotifier() {
+    stateManager = StateManager.changeNotifier;
+    fetchAnimePosts = fetchAnimePostsWithChangeNotifier;
+    if (controller.notifierPosts.isEmpty) {
+      fetchAnimePosts();
+    }
+    final notifierStore = controller.animePostsNotifierStore;
+    notifierStore.addListener(listenToErrorStateInNotifierStore);
+  }
+
+  void listenToErrorStateInNotifierStore() {
+    final notifierStoreState = controller.animePostsNotifierStore.state;
+    if (notifierStoreState is AnimePostsNotifierErrorState) {
+      showSnackBar(notifierStoreState.message);
+    }
+  }
+
+  void deactivateChangeNotifier() {
+    final notifierStore = controller.animePostsNotifierStore;
+    notifierStore.removeListener(listenToErrorStateInNotifierStore);
+  }
+
+  void fetchAnimePostsWithChangeNotifier() {
+    lockUpdatePostList = true;
+    controller.fetchAnimePostsWithChangeNotifier(onFinishFetchPosts);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Animes'),
-        centerTitle: true,
         actions: [
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -128,20 +160,32 @@ class _HomePageState extends State<HomePage> {
                       initMobx();
                     });
                   }),
+              TextButton(
+                  child: const Text(
+                    'CN',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  onPressed: () {
+                    if (stateManager == StateManager.changeNotifier) return;
+                    deactivateCurrentStateManager();
+                    setState(() {
+                      initChangeNotifier();
+                    });
+                  }),
             ],
           ),
         ],
       ),
-      body: Builder(builder: (context) {
+      body: Builder(builder: (_) {
         if (stateManager == StateManager.bloc) {
           return BlocConsumer<AnimePostsBloc, AnimePostsState>(
             bloc: controller.animePostsBloc,
             listener: (listenerContext, animePostsState) {
               if (animePostsState is AnimePostsErrorState) {
-                ScaffoldMessenger.of(listenerContext).showSnackBar(SnackBar(content: Text(animePostsState.message)));
+                showSnackBar(animePostsState.message, listenerContext);
               }
             },
-            builder: (builderContext, animePostsState) {
+            builder: (_, animePostsState) {
               final animePostsList = controller.posts;
               if (animePostsList.isEmpty) {
                 return const HomeLoadingWidget();
@@ -164,7 +208,7 @@ class _HomePageState extends State<HomePage> {
         }
         if (stateManager == StateManager.mobx) {
           return Observer(
-            builder: (mobxContext) {
+            builder: (_) {
               final state = controller.animePostsMobxStore.state;
               final animePostsList = controller.mobxPosts;
               if (animePostsList.isEmpty) {
@@ -173,9 +217,34 @@ class _HomePageState extends State<HomePage> {
               return ListView.builder(
                 controller: scrollControllerForPagination,
                 itemCount: animePostsList.length + 1,
-                itemBuilder: (mobxContext, index) {
+                itemBuilder: (_, index) {
                   if (isTheLastIndexOfTheAnimePostList(animePostsList, index)) {
                     return state is FetchingAnimeMobxPostsState ? const HomeLoadingWidget() : const SizedBox();
+                  }
+                  return AnimePostCardWidget(
+                    animePost: animePostsList[index],
+                    onTap: () => onTapAnimePostCard(animePostsList[index].link),
+                  );
+                },
+              );
+            },
+          );
+        }
+        if (stateManager == StateManager.changeNotifier) {
+          return AnimatedBuilder(
+            animation: controller.animePostsNotifierStore,
+            builder: (_, child) {
+              final state = controller.animePostsNotifierStore.state;
+              final animePostsList = controller.notifierPosts;
+              if (animePostsList.isEmpty) {
+                return const HomeLoadingWidget();
+              }
+              return ListView.builder(
+                controller: scrollControllerForPagination,
+                itemCount: animePostsList.length + 1,
+                itemBuilder: (_, index) {
+                  if (isTheLastIndexOfTheAnimePostList(animePostsList, index)) {
+                    return state is FetchingAnimeNotifierPostsState ? const HomeLoadingWidget() : const SizedBox();
                   }
                   return AnimePostCardWidget(
                     animePost: animePostsList[index],
@@ -199,6 +268,9 @@ class _HomePageState extends State<HomePage> {
       case StateManager.mobx:
         deactivateMobx();
         break;
+      case StateManager.changeNotifier:
+        deactivateChangeNotifier();
+        break;
       default:
     }
   }
@@ -208,9 +280,9 @@ class _HomePageState extends State<HomePage> {
   FutureOr<void> onTapAnimePostCard(String? link) {
     final url = link ?? '';
     return canLaunch(url).then((answer) {
-      answer == true ? launch(url) : ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível abrir o link')));
+      answer == true ? launch(url) : showSnackBar('Não foi possível abrir o link');
     }).onError<Exception>((error, stacktrace) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      showSnackBar(error.toString());
     });
   }
 }
